@@ -5,7 +5,7 @@ import moderngl
 import math
 
 
-from light import PointLight
+from light import *
 
 pygame.init()
 
@@ -15,12 +15,14 @@ pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
 pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE)
 pygame.display.gl_set_attribute(pygame.GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, 1)
 
-pixel_size = 3 # 4 for full hd, 8 for 4k
+pixel_size = 4 # 4 for full hd, 8 for 4k
 
 display_width, display_height = 480, 270
 screen_width, screen_height = display_width * pixel_size, display_height * pixel_size
 
 print(f'screen size of {screen_width} x {screen_height}')
+
+#screen = pygame.display.set_mode((0, 0), pygame.OPENGL | pygame.DOUBLEBUF | pygame.FULLSCREEN)
 
 screen = pygame.display.set_mode((screen_width, screen_height), pygame.OPENGL | pygame.DOUBLEBUF)
 display = pygame.Surface((display_width, display_height))
@@ -126,22 +128,32 @@ sphere_color_sprite = pygame.image.load("sphere.png")
 sphere_color_sprite = pygame.transform.scale(sphere_color_sprite, (size,size))
 
 sphere_normal_sprite = pygame.image.load("sphere_normal.png")
-sphere_normal_sprite = pygame.transform.scale(sphere_normal_sprite, (size,size))
+sphere_normal_sprite = pygame.transform.scale(sphere_normal_sprite, (size,size)) #wack
+#sphere_normal_sprite = pygame.transform.flip(sphere_normal_sprite, False, True)  # Flip vertically
+
+lightingSystem = LightingSystem(ctx)
 
 # Light over rectangle
-light = PointLight(ctx=ctx, x=140, y=130, radius=150, color=(1.0, 0.75, 0.5), intensity=2, volumetric_intensity=.3,angle=0,angular_width=.6)
-light2 = PointLight(ctx=ctx, x=140, y=130, radius=150, color=(1.0, 0.75, 0.5), intensity=2, volumetric_intensity=.3,angle=3.14,angular_width=.6)
+#light = PointLight(ctx=ctx, x=240, y=270, radius=150, color=(1.0, 0.75, 0.5), intensity=1, volumetric_intensity=.3,angle=0,angular_width=0.3,)
+#light2 = PointLight(ctx=ctx, x=240, y=270, radius=150, color=(1.0, 0.75, 0.5), intensity=1, volumetric_intensity=.3,angle=0,angular_width=0.3,)
+#light3 = GlobalLight(ctx=ctx, color=(1.0, 0.75, 0.5), intensity=.3)
+
+lightingSystem.addGlobalLight(color=(1, .9, .8), intensity=.1)
+
+lightingSystem.addPointLight(200, 135, 100)
 
 font = pygame.font.SysFont("arial", 24)
 
 while True:
 
+    keys = pygame.key.get_pressed()
+
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+        if event.type == pygame.QUIT or keys[pygame.K_q]:
             pygame.quit()
             sys.exit()
 
-    light2.angle += .01
+    lightingSystem.lights[0].angle += .01
 
     display.fill((0, 0, 0))  # Clear low-res surface
     color_buffer.fill((0, 0, 0))  # Clear low-res surface
@@ -156,9 +168,9 @@ while True:
     #print(mspt)
 
     # Blit sprite color and normals
-    sprite_pos = (180, 100)  # Center at ~16,12 in 32x24
-    color_buffer.blit(sphere_color_sprite, (sprite_pos[0], sprite_pos[1]))
-    normal_buffer.blit(sphere_normal_sprite, (sprite_pos[0], sprite_pos[1]))
+    sprite_pos = (240, 80)  # Center at ~16,12 in 32x24
+    color_buffer.blit(sphere_color_sprite, (sprite_pos[0] - size/2, sprite_pos[1] - size/2))
+    normal_buffer.blit(sphere_normal_sprite, (sprite_pos[0] - size/2, sprite_pos[1] - size/2))
 
     # First pass
 
@@ -183,18 +195,14 @@ while True:
     # bind color and normal buffers for light pass
     color_fbo_texture.use(0)
     normal_fbo_texture.use(1)
-    light.program['color_tex'] = 0
-    light.program['normal_tex'] = 1
+    lightingSystem.program['color_tex'] = 0
+    lightingSystem.program['normal_tex'] = 1
 
 
     # Second pass: Apply light shader to fbo
     fbo.use()
     fbo.clear(0.0, 0.0, 0.0, 1.0)
-    light.render(ctx)
-
-    
-    fbo.use()
-    light2.render(ctx)
+    lightingSystem.render(ctx)
     
 
     pygame.image.save(normal_buffer, "normal.png")
